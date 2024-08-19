@@ -23,10 +23,9 @@ void SpeakerController::playVictoryTune()
 
 void SpeakerController::playAskTune() 
 {
-    playTone(1000, 200);  // Tono 1 (1000 Hz) durante 200 ms
-    playTone(1200, 200);  // Tono 2 (1200 Hz) durante 200 ms
-    playTone(1400, 200);  // Tono 3 (1400 Hz) durante 200 ms
-    playTone(1600, 300);  // Tono 4 (1600 Hz) durante 300 ms
+    playTone(800, 100);  // Tono corto (800 Hz) durante 100 ms
+    delay(150);          // Pausa de 150 ms
+    playTone(800, 100);  // Repetir el tono (800 Hz) durante 100 ms
 }
 
 void SpeakerController::playErrorTune() 

@@ -30,6 +30,12 @@ void setup()
 void loop() 
 {
   // put your main code here, to run repeatedly:
-  ledBar->update(100, 50, 25);
+  //ledBar->update(100, 50, 25);
+  speaker->playVictoryTune();
+  delay(1000);
+  speaker->playAskTune();
+  delay(1000);
+  speaker->playErrorTune();
+  delay(1000);
 }
 
