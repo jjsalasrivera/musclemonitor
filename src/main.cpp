@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <ledBar.h>
+#include <speakerController.h>
 
 ////////////////////////
 // LED BAR DEFINITION //
@@ -10,14 +11,24 @@
 LedBar *ledBar;
 ////////////////////////
 
+////////////////////////
+// SPEAKER DEFINITION //
+#define SPEAKER_PIN 25
+SpeakerController *speaker;
+////////////////////////
 
-void setup() {
+
+void setup() 
+{
   // put your setup code here, to run once:
   ledBar = new LedBar(LED_CS_PIN, LED_CLK_PIN, LED_DATA_PIN, NUM_MODULES);
   ledBar->begin();
+
+  speaker = new SpeakerController(SPEAKER_PIN);
 }
 
-void loop() {
+void loop() 
+{
   // put your main code here, to run repeatedly:
   ledBar->update(100, 50, 25);
 }
