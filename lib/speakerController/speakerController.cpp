@@ -35,9 +35,22 @@ void SpeakerController::playErrorTune()
     playTone(200, 500);   // Tono final (200 Hz) durante 500 ms
 }
 
-void SpeakerController::playTone(int frequency, int duration) {
+void SpeakerController::playShortBeep() 
+{
+    playTone(800, 100);  // Tono corto (800 Hz) durante 100 ms
+}
+
+void SpeakerController::playOKTune() 
+{
+    playTone(800, 100);  // Tono corto (800 Hz) durante 100 ms
+    delay(150);          // Pausa de 150 ms
+    playTone(1200, 100); // Tono largo (1200 Hz) durante 100 ms
+}
+
+void SpeakerController::playTone(int frequency, int duration) 
+{
   ledcWriteTone(0, frequency);  // Generar el tono con la frecuencia especificada
   delay(duration);              // Mantener el tono durante la duración especificada
   ledcWriteTone(0, 0);          // Detener el tono
-  delay(50);                    // Pausa entre notas
+  delay(10);                    // Pausa entre notas
 }

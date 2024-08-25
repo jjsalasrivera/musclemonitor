@@ -10,6 +10,8 @@ public:
     void playVictoryTune();
     void playAskTune();
     void playErrorTune();
+    void playShortBeep();
+    void playOKTune();
 
 private:
     int _pin;
