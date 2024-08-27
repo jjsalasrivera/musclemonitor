@@ -13,6 +13,8 @@ public:
     void begin();
     void clear();
     void update(int percent1, int percent2, int percent3);
+    void setFull();
+    void setEmpty();
 
     ~LedBar();
 

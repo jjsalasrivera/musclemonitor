@@ -35,11 +35,13 @@ void keyPressedManager(char key);
 void deleteAllNVS();
 void deleteParameterFromNVS(int number);
 int loadParameterFromNVS(int number);
+void beginProgram();
 
 bool firstTime = true;
 String keySequence = "";
 
 bool valueLoaded = false;
+bool justLoaded = false;
 int savedValue = 0;
 
 void setup() 
@@ -65,6 +67,11 @@ void loop()
 
     if( valueLoaded )
     {
+        if( !justLoaded )
+        {
+            justLoaded = true;
+            beginProgram();
+        }
         // Leer valor de EMG
         int emgValue = analogRead(34);
         Serial.println("Valor EMG: " + String(emgValue));
@@ -82,6 +89,24 @@ void loop()
         speaker->playShortBeep();
         keyPressedManager(key); 
     }
+}
+
+void beginProgram()
+{
+    ledBar->setFull();
+    speaker->playMediumTune();
+    delay(1000);
+    ledBar->setEmpty();
+    delay(500);
+    ledBar->setFull();
+    speaker->playMediumTune();
+    delay(1000);
+    ledBar->setEmpty();
+    delay(500);
+    ledBar->setFull();
+    speaker->playLongTune();
+    delay(1000);
+    ledBar->setEmpty();
 }
 
 void keyPressedManager(char key)
@@ -102,7 +127,13 @@ void keyPressedManager(char key)
             deleteAllNVS();
             keySequence.clear();
             valueLoaded = false;
-        } 
+        }
+        else if(keySequence == "***")
+        {
+            speaker->playErrorTune();
+            keySequence.clear();
+            valueLoaded = false;
+        }
         else if (keySequence[0] == '#' && key == '#' && keySequence.length() > 2) 
         {
             try

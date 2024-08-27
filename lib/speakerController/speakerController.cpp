@@ -47,6 +47,16 @@ void SpeakerController::playOKTune()
     playTone(1200, 100); // Tono largo (1200 Hz) durante 100 ms
 }
 
+void SpeakerController::playMediumTune() 
+{
+    playTone(800, 500);  // Tono corto (800 Hz) durante 100 ms
+}
+
+void SpeakerController::playLongTune() 
+{
+    playTone(800, 1000);  // Tono largo (800 Hz) durante 1000 ms
+}
+
 void SpeakerController::playTone(int frequency, int duration) 
 {
   ledcWriteTone(0, frequency);  // Generar el tono con la frecuencia especificada

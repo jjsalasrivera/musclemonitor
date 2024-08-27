@@ -12,6 +12,8 @@ public:
     void playErrorTune();
     void playShortBeep();
     void playOKTune();
+    void playMediumTune();
+    void playLongTune();
 
 private:
     int _pin;

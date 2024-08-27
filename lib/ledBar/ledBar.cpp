@@ -14,7 +14,31 @@ void LedBar::begin()
 {
     mx->begin();
     setBrightness(DEFAULT_BRIGHTNESS);
-}   
+}
+
+void LedBar::setFull() 
+{
+    mx->setRow(0, 0b11111111);
+    mx->setRow(1, 0b11111111);
+    mx->setRow(2, 0b11111111);
+    mx->setRow(3, 0b11111111);
+    mx->setRow(4, 0b11111111);
+    mx->setRow(5, 0b11111111);
+    mx->setRow(6, 0b11111111);
+    mx->setRow(7, 0b11111111);
+}
+
+void LedBar::setEmpty() 
+{
+    mx->setRow(0, 0b00000000);
+    mx->setRow(1, 0b00000000);
+    mx->setRow(2, 0b00000000);
+    mx->setRow(3, 0b00000000);
+    mx->setRow(4, 0b00000000);
+    mx->setRow(5, 0b00000000);
+    mx->setRow(6, 0b00000000);
+    mx->setRow(7, 0b00000000);
+}
 
 void LedBar::update(int percent1, int percent2, int percent3) 
 {
