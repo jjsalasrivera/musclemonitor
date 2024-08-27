@@ -44,6 +44,10 @@ bool valueLoaded = false;
 bool justLoaded = false;
 int savedValue = 0;
 
+#define TIME_TO_AVERAGE 15000
+unsigned long beginTime = 0;
+unsigned long currentTime = 0;
+
 void setup() 
 {
     // put your setup code here, to run once:
@@ -76,6 +80,18 @@ void loop()
         int emgValue = analogRead(34);
         Serial.println("Valor EMG: " + String(emgValue));
 
+        if( millis() - currentTime > TIME_TO_AVERAGE )
+        {
+            currentTime = millis();
+            
+            speaker->playVictoryTune();
+            ledBar->setFull();
+            delay(1000);
+            ledBar->setEmpty();
+            valueLoaded = false;
+            justLoaded = false;
+        }
+
         // Actualizar barra de LEDs
         int percent = map(emgValue, 0, 4095, 0, 100);
         ledBar->update(percent, percent, percent);
@@ -107,6 +123,8 @@ void beginProgram()
     speaker->playLongTune();
     delay(1000);
     ledBar->setEmpty();
+    beginTime = millis();
+    currentTime = beginTime;
 }
 
 void keyPressedManager(char key)
@@ -114,6 +132,7 @@ void keyPressedManager(char key)
     // Codes '#XXXX#' where XXXX is the code with no length limit will load XXXX from memory
     // Code '*XXXX*' will delete NVS memory
     // Code '*#*' Will delete all NVS memory
+    // Code '***" will stop program
     // Otherwise the code is wrong and will be ignored and play error tone
 
     if (key == '#' || key == '*') 
