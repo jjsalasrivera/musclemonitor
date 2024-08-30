@@ -35,3 +35,10 @@ A muscle intensity sensor with ESP32, speaker and a MAX7219 led bar
  * **"\*\<num\>\*"**: Delete saved value from <num>.
  * **"\*#\*"**: Delete all saved values.
  * **"\*\*\*"**: End program loaded
+
+## EMG Sensor
+
+| ESP32 | EMG   | 
+| ----- | ----- | 
+| D13   | S Out | 
+| GND   | GND   | 

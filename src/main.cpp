@@ -4,6 +4,7 @@
 #include <KeypadController.h>
 #include <nvs_flash.h>
 #include <nvs.h>
+#include <vector>
 
 #define STORAGE_NAMESPACE "storage"
 
@@ -31,11 +32,20 @@ uint8_t rowPins[ROWS] = { 13, 12, 14, 27 };
 KeypadController *keypadController = NULL;
 ////////////////////////
 
+////////////////////////
+// EMG DEFINITION //
+#define EMG_PIN 13
+const int EMG_BACKGORUND_SCALE = 205;
+const int EMG_MIN_SCALE = 0;
+const int EMG_MAX_SCALE = 4095;
+////////////////////////
+
 void keyPressedManager(char key);
 void deleteAllNVS();
 void deleteParameterFromNVS(int number);
 int loadParameterFromNVS(int number);
 void beginProgram();
+int getAverage();
 
 bool firstTime = true;
 String keySequence = "";
@@ -47,6 +57,9 @@ int savedValue = 0;
 #define TIME_TO_AVERAGE 15000
 unsigned long beginTime = 0;
 unsigned long currentTime = 0;
+
+std::vector<int> emgValues;
+int average = 0;
 
 void setup() 
 {
@@ -63,9 +76,10 @@ void loop()
     if( firstTime )
     {
         firstTime = false;
-        ledBar->update(100, 100, 100);
+        speaker->playShortBeep();
+        ledBar->setFull();
         delay(1000);
-        ledBar->update(0, 0, 0);
+        ledBar->clear();
         speaker->playAskTune();
     }
 
@@ -79,24 +93,32 @@ void loop()
         // Leer valor de EMG
         int emgValue = analogRead(34);
         Serial.println("Valor EMG: " + String(emgValue));
+        Serial.print(">emgValue:");
+    
+        // restar fondo de escala
+        if( emgValue <= EMG_BACKGORUND_SCALE )
+            emgValue = 0;
+
+        // Escalar valor
+        emgValue = map(emgValue, EMG_MIN_SCALE, EMG_MAX_SCALE, 0, 100);
+        emgValues.push_back(emgValue);
+
+        if( emgValue > savedValue )
+        {
+            savedValue = emgValue;
+            speaker->playVictoryTune();
+        }
 
         if( millis() - currentTime > TIME_TO_AVERAGE )
         {
             currentTime = millis();
-            
-            speaker->playVictoryTune();
-            ledBar->setFull();
-            delay(1000);
-            ledBar->setEmpty();
-            valueLoaded = false;
-            justLoaded = false;
+            average = getAverage();  
         }
 
-        // Actualizar barra de LEDs
-        int percent = map(emgValue, 0, 4095, 0, 100);
-        ledBar->update(percent, percent, percent);
+        ledBar->update(emgValue, average, savedValue);
     }
 
+    /////////////////////////
     char key = keypadController->getKey();
 
     if( key )
@@ -105,6 +127,8 @@ void loop()
         speaker->playShortBeep();
         keyPressedManager(key); 
     }
+
+    delay(100);
 }
 
 void beginProgram()
@@ -332,4 +356,56 @@ void deleteAllNVS()
     }
 
     nvs_close(my_handle);
+}
+
+int getAverage()
+{
+    int sum = 0;
+    for(int i = 0; i < emgValues.size(); i++)
+        sum += emgValues[i];
+
+    int res = sum / emgValues.size();
+    emgValues.clear();
+
+    return res;
+}
+
+void saveValue(int value)
+{
+    Serial.println("Salvando valor " + String(value) + " en la memoria NVS...");
+
+    // Inicializar NVS
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+
+    // Abrir espacio de almacenamiento
+    nvs_handle_t my_handle;
+    ret = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+    if(ret != ESP_OK) 
+    {
+        Serial.println("Error (%s) opening NVS handle!\n");
+        speaker->playErrorTune();
+    } 
+    else 
+    {
+        // Escribir el parámetro
+        ret = nvs_set_i32(my_handle, String(value).c_str(), value);
+        if (ret != ESP_OK) 
+        {
+            Serial.println("Error (%s) writing!\n");
+            speaker->playErrorTune();
+        } 
+        else 
+        {
+            Serial.println("Valor salvado correctamente!");
+            speaker->playOKTune();
+        }
+    }
+
+    nvs_close(my_handle);
+
 }
