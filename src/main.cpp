@@ -7,19 +7,20 @@
 #include <vector>
 
 #define STORAGE_NAMESPACE "storage"
+#define STORAGE_KEY "int_" 
 
 ////////////////////////
 // LED BAR DEFINITION //
-#define LED_DATA_PIN 23
+#define LED_DATA_PIN 15
 #define LED_CLK_PIN  18
-#define LED_CS_PIN   15
+#define LED_CS_PIN   2
 #define NUM_MODULES  4
-LedBar *ledBar;
+LedBar *ledBar = NULL;
 ////////////////////////
 
 ////////////////////////
 // SPEAKER DEFINITION //
-#define SPEAKER_PIN 35
+#define SPEAKER_PIN 13
 SpeakerController *speaker = NULL;
 ////////////////////////
 
@@ -27,14 +28,14 @@ SpeakerController *speaker = NULL;
 // KEYBOARD DEFINITION //
 #define ROWS 4
 #define COLS 3
-uint8_t colPins[COLS] = { 26, 25, 33 };
-uint8_t rowPins[ROWS] = { 13, 12, 14, 27 };
+uint8_t colPins[COLS] = { 25, 33, 32 };
+uint8_t rowPins[ROWS] = { 12, 14, 27, 26 };
 KeypadController *keypadController = NULL;
 ////////////////////////
 
 ////////////////////////
 // EMG DEFINITION //
-#define EMG_PIN 13
+#define EMG_PIN 34
 const int EMG_BACKGORUND_SCALE = 205;
 const int EMG_MIN_SCALE = 0;
 const int EMG_MAX_SCALE = 4095;
@@ -42,17 +43,19 @@ const int EMG_MAX_SCALE = 4095;
 
 void keyPressedManager(char key);
 void deleteAllNVS();
-void deleteParameterFromNVS(int number);
-int loadParameterFromNVS(int number);
+void deleteParameterFromNVS(int programLoaded);
+int loadParameterFromNVS(int programLoaded);
 void beginProgram();
 int getAverage();
+void saveValue(int programLoaded, int value);
+bool isNumber(String str);
 
-bool firstTime = true;
 String keySequence = "";
 
 bool valueLoaded = false;
 bool justLoaded = false;
 int savedValue = 0;
+int programLoaded = 0;
 
 #define TIME_TO_AVERAGE 15000
 unsigned long beginTime = 0;
@@ -63,26 +66,33 @@ int average = 0;
 
 void setup() 
 {
+    Serial.begin(9600);
     // put your setup code here, to run once:
     ledBar = new LedBar(LED_CS_PIN, LED_CLK_PIN, LED_DATA_PIN, NUM_MODULES);
     ledBar->begin();
 
     speaker = new SpeakerController(SPEAKER_PIN);
     keypadController = new KeypadController(rowPins, colPins);
+
+    // Secuencia de inicio
+    Serial.println("Bienvenido al programa de EMG!");
+    speaker->playShortBeep();
+    ledBar->setFull();
+    delay(250);
+    ledBar->setEmpty();
+    delay(250);
+    ledBar->setFull();
+    delay(250);
+    ledBar->setEmpty();
+    delay(250);
+    ledBar->setFull();
+    delay(250);
+    ledBar->setEmpty();
+    speaker->playAskTune();
 }
 
 void loop() 
 {
-    if( firstTime )
-    {
-        firstTime = false;
-        speaker->playShortBeep();
-        ledBar->setFull();
-        delay(1000);
-        ledBar->clear();
-        speaker->playAskTune();
-    }
-
     if( valueLoaded )
     {
         if( !justLoaded )
@@ -91,7 +101,7 @@ void loop()
             beginProgram();
         }
         // Leer valor de EMG
-        int emgValue = analogRead(34);
+        int emgValue = analogRead(EMG_PIN);
         Serial.println("Valor EMG: " + String(emgValue));
         Serial.print(">emgValue:");
     
@@ -100,22 +110,30 @@ void loop()
             emgValue = 0;
 
         // Escalar valor
-        emgValue = map(emgValue, EMG_MIN_SCALE, EMG_MAX_SCALE, 0, 100);
-        emgValues.push_back(emgValue);
+        int normalizedValue = map(emgValue, EMG_MIN_SCALE, EMG_MAX_SCALE, 0, 100);
+        Serial.println("Valor Normalizado: " + String(normalizedValue));
+        Serial.print(">normalizedValue:");
 
-        if( emgValue > savedValue )
-        {
-            savedValue = emgValue;
-            speaker->playVictoryTune();
-        }
+        emgValues.push_back(normalizedValue);
 
         if( millis() - currentTime > TIME_TO_AVERAGE )
         {
+            Serial.println("Cantidad de valores: " + String(emgValues.size())); 
+
             currentTime = millis();
             average = getAverage();  
+            Serial.println("Promedio: " + String(average));
+            Serial.print(">average:");
+        
+            if( average > savedValue )
+            {
+                savedValue = average;
+                saveValue(programLoaded, savedValue);
+                speaker->playVictoryTune();
+                Serial.print(">savedValue:");
+            }
         }
-
-        ledBar->update(emgValue, average, savedValue);
+        ledBar->update(normalizedValue, average, savedValue);
     }
 
     /////////////////////////
@@ -128,7 +146,7 @@ void loop()
         keyPressedManager(key); 
     }
 
-    delay(100);
+    delay(150 );
 }
 
 void beginProgram()
@@ -149,6 +167,8 @@ void beginProgram()
     ledBar->setEmpty();
     beginTime = millis();
     currentTime = beginTime;
+    average = 0;
+    emgValues.clear();
 }
 
 void keyPressedManager(char key)
@@ -159,89 +179,83 @@ void keyPressedManager(char key)
     // Code '***" will stop program
     // Otherwise the code is wrong and will be ignored and play error tone
 
-    if (key == '#' || key == '*') 
-    {
-        if (keySequence.isEmpty()) 
-        {
-            keySequence += key;
-        } 
-        else if (keySequence == "*#*") 
-        {
-            deleteAllNVS();
-            keySequence.clear();
-            valueLoaded = false;
-        }
-        else if(keySequence == "***")
-        {
-            speaker->playErrorTune();
-            keySequence.clear();
-            valueLoaded = false;
-        }
-        else if (keySequence[0] == '#' && key == '#' && keySequence.length() > 2) 
-        {
-            try
-            {
-                int number = keySequence.substring(1, keySequence.length() - 2).toInt();
-                savedValue = loadParameterFromNVS(number);
-                valueLoaded = true;
-            }
-            catch(const std::exception& e)
-            {
-                Serial.println("Error: " + String(e.what()));
-                speaker->playErrorTune();
-                valueLoaded = false;
-            }
-            
-            keySequence.clear();
-        } 
-        else if (keySequence[0] == '*' && key == '*' && keySequence.length() > 2) 
-        {
-            try
-            {
-                int number = keySequence.substring(1, keySequence.length() - 2).toInt();
-                deleteParameterFromNVS(number);            
-            }
-            catch(const std::exception& e)
-            {
-                Serial.println("Error: " + String(e.what()));
-                speaker->playErrorTune();
-            }
+    keySequence += key;
 
-            valueLoaded = false;
-            keySequence.clear();
-        }
-        if(keySequence.length() > 2)
-        {
-            speaker->playErrorTune();
-            keySequence.clear();
-            valueLoaded = false;
-        }
-        if( (keySequence[0] == '#' && key == '*') || (keySequence[0] == '*' && key == '#'))
-        {
-            speaker->playErrorTune();
-            keySequence.clear();
-            valueLoaded = false;
-        }
+    // Verifica los comandos ingresados
+    if (keySequence.startsWith("#") && keySequence.endsWith("#") && keySequence.length() > 2)
+    {
+        // Comando "#<num>#": Cargar valor guardado
+        String num = keySequence.substring(1, keySequence.length() - 1);
+        // Verifica que <num> no esté vacío
+        if (num.length() > 0 && isNumber(num)) 
+        {  
+            Serial.println("Cargar valor guardado de: " + num);
+            savedValue = loadParameterFromNVS(num.toInt());
+            programLoaded = num.toInt();
+            valueLoaded = true;
+        } 
         else 
         {
-            keySequence += key;
+            speaker->playErrorTune();
+            valueLoaded = false;
+            Serial.println("Error: Comando inválido, falta <num>");
         }
-    } 
-    else if (key >= '0' && key <= '9' && keySequence.length() > 0)
-    {
-        keySequence += key;
-    } 
-    else 
-    {
-        speaker->playErrorTune();
         keySequence.clear();
-        valueLoaded = false;
     }
+    else if (keySequence.startsWith("*") && keySequence.endsWith("*") && keySequence.length() > 2)
+    {
+        if (keySequence.equals("*#*")) 
+        {
+            deleteAllNVS();
+        } 
+        else if (keySequence.equals("***")) 
+        {
+            valueLoaded = false;
+            speaker->playOKTune();
+            ledBar->setEmpty();
+        } 
+        else 
+        {
+            // Comando "*<num>*": Borrar valor guardado
+            String num = keySequence.substring(1, keySequence.length() - 1);
+            // Verifica que <num> no esté vacío
+            if (num.length() > 0 && isNumber(num)) 
+            {
+                try
+                {
+                    deleteParameterFromNVS(num.toInt());
+                    speaker->playOKTune();
+                }
+                catch(const std::exception& e)
+                {
+                    Serial.println("Error: " + String(e.what()));
+                    speaker->playErrorTune();
+                }
+            } 
+            else 
+            {
+                speaker->playErrorTune();
+            }
+            
+        }
+        valueLoaded = false;
+        keySequence.clear();
+    }
+    /*else if (keySequence.length() >= 3) 
+    {
+        // Longitud mínima de un comando válido ya alcanzada
+        if (!keySequence.equals("*") && !keySequence.equals("#")) 
+        {
+            Serial.println("Error: Comando no reconocido: " + keySequence);
+            speaker->playErrorTune();
+            keySequence.clear(); // Reinicia la entrada en caso de error
+        }
+    }*/
 }
 
-void deleteParameterFromNVS(int number)
+void deleteParameterFromNVS(int programLoaded)
 {
-    Serial.println("Borrando parámetro " + String(number) + " de la memoria NVS...");
+    Serial.println("Borrando parámetro " + String(programLoaded) + " de la memoria NVS...");
     
     // Inicializar NVS
     esp_err_t ret = nvs_flash_init();
@@ -256,16 +270,18 @@ void deleteParameterFromNVS(int number)
     ret = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
     if(ret != ESP_OK) 
     {
-        Serial.println("Error (%s) opening NVS handle!\n");
+        Serial.println("Error ("+ String(ret) + ") opening NVS handle!\n");
         speaker->playErrorTune();
     } 
     else 
     {
+        char key[16];
+        snprintf(key, sizeof(key), "%s%d", STORAGE_KEY, programLoaded);
         // Borrar el parámetro
-        ret = nvs_erase_key(my_handle, String(number).c_str());
+        ret = nvs_erase_key(my_handle, key);
         if (ret != ESP_OK) 
         {
-            Serial.println("Error (%s) erasing key!\n");
+            Serial.println("Error (" + String(ret) + ") erasing key!\n");
             speaker->playErrorTune();
         } 
         else 
@@ -279,10 +295,10 @@ void deleteParameterFromNVS(int number)
     nvs_close(my_handle);
 }
 
-int loadParameterFromNVS(int number)
+int loadParameterFromNVS(int programLoaded)
 {
     int res = 0;
-    Serial.println("Cargando parámetro " + String(number) + " de la memoria NVS...");
+    Serial.println("Cargando parámetro " + String(STORAGE_KEY) + String(programLoaded)+ " de la memoria NVS...");
 
     // Inicializar NVS
     esp_err_t ret = nvs_flash_init();
@@ -297,14 +313,16 @@ int loadParameterFromNVS(int number)
     ret = nvs_open(STORAGE_NAMESPACE, NVS_READONLY, &my_handle);
     if(ret != ESP_OK) 
     {
-        Serial.println("Error (%s) opening NVS handle!\n");
+        Serial.println("Error (" + String(ret) + ") opening NVS handle!\n");
         speaker->playErrorTune();
     } 
     else 
     {
+        char key[16];
+        snprintf(key, sizeof(key), "%s%d", STORAGE_KEY, programLoaded);
         // Leer el parámetro
         int value = 0;
-        ret = nvs_get_i32(my_handle, String(number).c_str(), &value);
+        ret = nvs_get_i32(my_handle, key, &value);
         switch (ret) 
         {
             case ESP_OK:
@@ -317,7 +335,7 @@ int loadParameterFromNVS(int number)
                 speaker->playOKTune();
                 break;
             default:
-                Serial.println("Error (%s) reading!\n");
+                Serial.println("Error ("+ String(ret) + ") reading!\n");
                 speaker->playErrorTune();
         }
     }
@@ -344,7 +362,7 @@ void deleteAllNVS()
     ret = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
     if(ret != ESP_OK) 
     {
-        Serial.println("Error (%s) opening NVS handle!\n");
+        Serial.println("Error (" + String(ret) + ") opening NVS handle!\n");
         speaker->playErrorTune();
     } 
     else 
@@ -370,9 +388,9 @@ int getAverage()
     return res;
 }
 
-void saveValue(int value)
+void saveValue(int programLoaded, int value)
 {
-    Serial.println("Salvando valor " + String(value) + " en la memoria NVS...");
+    Serial.println("Salvando " + String(STORAGE_KEY) + String(programLoaded) + " : " + String(value) + " en la memoria NVS...");
 
     // Inicializar NVS
     esp_err_t ret = nvs_flash_init();
@@ -393,19 +411,38 @@ void saveValue(int value)
     else 
     {
         // Escribir el parámetro
-        ret = nvs_set_i32(my_handle, String(value).c_str(), value);
+        char key[16];
+        snprintf(key, sizeof(key), "%s%d", STORAGE_KEY, programLoaded);
+
+        ret = nvs_set_i32(my_handle, key, value);
         if (ret != ESP_OK) 
         {
             Serial.println("Error (%s) writing!\n");
             speaker->playErrorTune();
-        } 
+        }
         else 
         {
+            ret = nvs_commit(my_handle);
+            if (ret != ESP_OK) 
+            {
+                Serial.println("Error (%s) committing!\n");
+                speaker->playErrorTune();
+            }
             Serial.println("Valor salvado correctamente!");
             speaker->playOKTune();
         }
     }
 
     nvs_close(my_handle);
+}
 
+bool isNumber(String str)
+{
+    for(int i = 0; i < str.length(); i++)
+    {
+        if( !isDigit(str[i]) )
+            return false;
+    }
+
+    return true;
 }
