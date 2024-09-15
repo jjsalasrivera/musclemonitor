@@ -35,7 +35,7 @@ KeypadController *keypadController = NULL;
 
 ////////////////////////
 // EMG DEFINITION //
-#define EMG_PIN 34
+#define EMG_PIN 36
 const int EMG_BACKGORUND_SCALE = 205;
 const int EMG_MIN_SCALE = 0;
 const int EMG_MAX_SCALE = 4095;
@@ -102,8 +102,9 @@ void loop()
         }
         // Leer valor de EMG
         int emgValue = analogRead(EMG_PIN);
-        Serial.println("Valor EMG: " + String(emgValue));
+        //Serial.println("Valor EMG: " + String(emgValue));
         Serial.print(">emgValue:");
+        Serial.println(emgValue);
     
         // restar fondo de escala
         if( emgValue <= EMG_BACKGORUND_SCALE )
@@ -111,10 +112,12 @@ void loop()
 
         // Escalar valor
         int normalizedValue = map(emgValue, EMG_MIN_SCALE, EMG_MAX_SCALE, 0, 100);
-        Serial.println("Valor Normalizado: " + String(normalizedValue));
         Serial.print(">normalizedValue:");
+        //Serial.println("Valor Normalizado: " + String(normalizedValue));
+        Serial.println(normalizedValue);
 
-        emgValues.push_back(normalizedValue);
+        if(normalizedValue > 0)
+            emgValues.push_back(normalizedValue);
 
         if( millis() - currentTime > TIME_TO_AVERAGE )
         {
@@ -122,8 +125,9 @@ void loop()
 
             currentTime = millis();
             average = getAverage();  
-            Serial.println("Promedio: " + String(average));
+            //Serial.println("Promedio: " + String(average));
             Serial.print(">average:");
+            Serial.println(average);
         
             if( average > savedValue )
             {
@@ -131,6 +135,7 @@ void loop()
                 saveValue(programLoaded, savedValue);
                 speaker->playVictoryTune();
                 Serial.print(">savedValue:");
+                Serial.println(savedValue);
             }
         }
         ledBar->update(normalizedValue, average, savedValue);
@@ -146,7 +151,7 @@ void loop()
         keyPressedManager(key); 
     }
 
-    delay(150 );
+    delay(100);
 }
 
 void beginProgram()
@@ -379,6 +384,11 @@ void deleteAllNVS()
 int getAverage()
 {
     int sum = 0;
+    int size = emgValues.size();
+    
+    if( size == 0 )
+        return 0;
+
     for(int i = 0; i < emgValues.size(); i++)
         sum += emgValues[i];
 

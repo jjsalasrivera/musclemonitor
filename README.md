@@ -40,5 +40,5 @@ A muscle intensity sensor with ESP32, speaker and a MAX7219 led bar
 
 | ESP32 | EMG   | 
 | ----- | ----- | 
-| D34   | S Out | 
+| VP    | S Out | 
 | GND   | GND   | 
